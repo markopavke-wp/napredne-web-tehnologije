@@ -1,12 +1,14 @@
 use axum::{
     extract::{Path, State},
     http::StatusCode,
+    Extension,
     Json,
 };
 use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::errors::AppError;
+use crate::handlers::middleware::AuthUser;
 use crate::models::recipe::{CreateRecipeRequest, Recipe, RecipeWithAuthor, SearchByIngredientsRequest};
 use crate::AppState;
 
@@ -50,11 +52,10 @@ pub async fn get_recipe(
 
 pub async fn create_recipe(
     State(state): State<Arc<AppState>>,
+    Extension(auth_user): Extension<AuthUser>,
     Json(body): Json<CreateRecipeRequest>,
 ) -> Result<(StatusCode, Json<Recipe>), AppError> {
     let recipe_id = Uuid::new_v4();
-    // TODO: extract user_id from JWT middleware
-    let user_id = Uuid::new_v4();
 
     let recipe = sqlx::query_as::<_, Recipe>(
         r#"
@@ -65,7 +66,7 @@ pub async fn create_recipe(
         "#,
     )
     .bind(recipe_id)
-    .bind(user_id)
+    .bind(auth_user.user_id)
     .bind(&body.title)
     .bind(&body.description)
     .bind(&body.instructions)
@@ -93,6 +94,7 @@ pub async fn create_recipe(
 
 pub async fn update_recipe(
     State(state): State<Arc<AppState>>,
+    Extension(auth_user): Extension<AuthUser>,
     Path(id): Path<Uuid>,
     Json(body): Json<CreateRecipeRequest>,
 ) -> Result<Json<Recipe>, AppError> {
@@ -101,7 +103,7 @@ pub async fn update_recipe(
         UPDATE recipes SET title = $1, description = $2, instructions = $3,
             prep_time_min = $4, cook_time_min = $5, servings = $6,
             image_url = $7, updated_at = NOW()
-        WHERE id = $8
+        WHERE id = $8 AND user_id = $9
         RETURNING *
         "#,
     )
@@ -113,6 +115,7 @@ pub async fn update_recipe(
     .bind(body.servings)
     .bind(&body.image_url)
     .bind(id)
+    .bind(auth_user.user_id)
     .fetch_optional(&state.db)
     .await?
     .ok_or(AppError::NotFound)?;
@@ -122,10 +125,12 @@ pub async fn update_recipe(
 
 pub async fn delete_recipe(
     State(state): State<Arc<AppState>>,
+    Extension(auth_user): Extension<AuthUser>,
     Path(id): Path<Uuid>,
 ) -> Result<StatusCode, AppError> {
-    let result = sqlx::query("DELETE FROM recipes WHERE id = $1")
+    let result = sqlx::query("DELETE FROM recipes WHERE id = $1 AND user_id = $2")
         .bind(id)
+        .bind(auth_user.user_id)
         .execute(&state.db)
         .await?;
 

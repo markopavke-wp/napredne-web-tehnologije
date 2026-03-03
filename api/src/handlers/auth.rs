@@ -6,12 +6,13 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::errors::AppError;
-use crate::models::user::{AuthResponse, LoginRequest, RegisterRequest, User, UserResponse};
+use crate::models::user::{AuthResponse, LoginRequest, RegisterRequest, User};
 use crate::AppState;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Claims {
     pub sub: String,
+    pub role: String,
     pub exp: usize,
 }
 
@@ -31,9 +32,9 @@ pub async fn register(
 
     let user = sqlx::query_as::<_, User>(
         r#"
-        INSERT INTO users (id, username, email, password_hash, created_at)
-        VALUES ($1, $2, $3, $4, NOW())
-        RETURNING id, username, email, password_hash, created_at
+        INSERT INTO users (id, username, email, password_hash, role, created_at)
+        VALUES ($1, $2, $3, $4, 'user', NOW())
+        RETURNING id, username, email, password_hash, role, created_at
         "#,
     )
     .bind(Uuid::new_v4())
@@ -44,7 +45,7 @@ pub async fn register(
     .await
     .map_err(|_| AppError::Conflict("Email or username already exists".into()))?;
 
-    let token = generate_token(&user.id.to_string(), &state.jwt_secret)?;
+    let token = generate_token(&user.id.to_string(), &user.role, &state.jwt_secret)?;
 
     Ok(Json(AuthResponse {
         token,
@@ -57,7 +58,7 @@ pub async fn login(
     Json(body): Json<LoginRequest>,
 ) -> Result<Json<AuthResponse>, AppError> {
     let user = sqlx::query_as::<_, User>(
-        "SELECT id, username, email, password_hash, created_at FROM users WHERE email = $1",
+        "SELECT id, username, email, password_hash, role, created_at FROM users WHERE email = $1",
     )
     .bind(&body.email)
     .fetch_optional(&state.db)
@@ -71,7 +72,7 @@ pub async fn login(
         return Err(AppError::Unauthorized);
     }
 
-    let token = generate_token(&user.id.to_string(), &state.jwt_secret)?;
+    let token = generate_token(&user.id.to_string(), &user.role, &state.jwt_secret)?;
 
     Ok(Json(AuthResponse {
         token,
@@ -79,7 +80,7 @@ pub async fn login(
     }))
 }
 
-fn generate_token(user_id: &str, secret: &str) -> Result<String, AppError> {
+fn generate_token(user_id: &str, role: &str, secret: &str) -> Result<String, AppError> {
     let expiration = chrono::Utc::now()
         .checked_add_signed(chrono::Duration::hours(24))
         .unwrap()
@@ -87,6 +88,7 @@ fn generate_token(user_id: &str, secret: &str) -> Result<String, AppError> {
 
     let claims = Claims {
         sub: user_id.to_string(),
+        role: role.to_string(),
         exp: expiration,
     };
 

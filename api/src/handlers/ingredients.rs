@@ -1,8 +1,9 @@
-use axum::{extract::State, http::StatusCode, Json};
+use axum::{extract::State, http::StatusCode, Extension, Json};
 use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::errors::AppError;
+use crate::handlers::middleware::AuthUser;
 use crate::models::ingredient::{CreateIngredientRequest, Ingredient};
 use crate::AppState;
 
@@ -20,8 +21,13 @@ pub async fn list_ingredients(
 
 pub async fn create_ingredient(
     State(state): State<Arc<AppState>>,
+    Extension(auth_user): Extension<AuthUser>,
     Json(body): Json<CreateIngredientRequest>,
 ) -> Result<(StatusCode, Json<Ingredient>), AppError> {
+    if auth_user.role != "admin" {
+        return Err(AppError::Unauthorized);
+    }
+
     let ingredient = sqlx::query_as::<_, Ingredient>(
         r#"
         INSERT INTO ingredients (id, name, calories_per_100g, protein_per_100g, carbs_per_100g, fat_per_100g, fiber_per_100g)

@@ -1,4 +1,5 @@
 use axum::{
+    middleware,
     routing::{get, post, put, delete},
     Router,
 };
@@ -52,18 +53,27 @@ async fn main() {
         .allow_methods(Any)
         .allow_headers(Any);
 
-    let app = Router::new()
+    let protected_routes = Router::new()
+        .route("/api/recipes", post(handlers::recipes::create_recipe))
+        .route("/api/recipes/:id", put(handlers::recipes::update_recipe))
+        .route("/api/recipes/:id", delete(handlers::recipes::delete_recipe))
+        .route("/api/ingredients", post(handlers::ingredients::create_ingredient))
+        .layer(middleware::from_fn_with_state(
+            state.clone(),
+            handlers::middleware::auth_middleware,
+        ));
+
+    let public_routes = Router::new()
         .route("/api/health", get(|| async { "OK" }))
         .route("/api/auth/register", post(handlers::auth::register))
         .route("/api/auth/login", post(handlers::auth::login))
         .route("/api/recipes", get(handlers::recipes::list_recipes))
-        .route("/api/recipes", post(handlers::recipes::create_recipe))
         .route("/api/recipes/:id", get(handlers::recipes::get_recipe))
-        .route("/api/recipes/:id", put(handlers::recipes::update_recipe))
-        .route("/api/recipes/:id", delete(handlers::recipes::delete_recipe))
         .route("/api/recipes/search", post(handlers::recipes::search_by_ingredients))
-        .route("/api/ingredients", get(handlers::ingredients::list_ingredients))
-        .route("/api/ingredients", post(handlers::ingredients::create_ingredient))
+        .route("/api/ingredients", get(handlers::ingredients::list_ingredients));
+
+    let app = public_routes
+        .merge(protected_routes)
         .layer(cors)
         .with_state(state);
 
