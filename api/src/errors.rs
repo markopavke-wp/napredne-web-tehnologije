@@ -9,6 +9,10 @@ pub enum AppError {
     #[error("Unauthorized")]
     Unauthorized,
 
+    #[error("Forbidden")]
+    Forbidden,
+
+
     #[error("Conflict: {0}")]
     Conflict(String),
 
@@ -27,6 +31,7 @@ impl IntoResponse for AppError {
         let (status, message) = match &self {
             AppError::NotFound => (StatusCode::NOT_FOUND, self.to_string()),
             AppError::Unauthorized => (StatusCode::UNAUTHORIZED, self.to_string()),
+            AppError::Forbidden => (StatusCode::FORBIDDEN, "Forbidden - insufficient permissions".to_string()),
             AppError::Conflict(msg) => (StatusCode::CONFLICT, msg.clone()),
             AppError::BadRequest(msg) => (StatusCode::BAD_REQUEST, msg.clone()),
             AppError::Internal(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg.clone()),

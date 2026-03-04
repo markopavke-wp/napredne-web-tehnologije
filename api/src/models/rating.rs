@@ -39,8 +39,8 @@ pub struct CreateRatingRequest {
 
 /// Statistika ocjena za jedan recept
 /// Koristi se za prikaz prosječne ocjene i broja glasova
-#[derive(Debug, FromRow, Serialize)]
+#[derive(Debug, FromRow, Serialize, Deserialize)]
 pub struct RecipeStats {
-    pub average_rating: Option<f64>, // NULL ako nema ocjena
-    pub total_ratings: i64,          // broj ocjena
+    pub average_rating: Option<f64>,
+    pub total_ratings: i64,
 }

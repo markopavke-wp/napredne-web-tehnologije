@@ -1,10 +1,10 @@
 // Handler za ocjene i komentare recepata
 //
 // Endpointi:
-// POST   /api/recipes/:id/rate    - ocijeni recept (1-5) + opcioni komentar
-// GET    /api/recipes/:id/ratings - sve ocjene za recept (javno)
-// GET    /api/recipes/:id/stats   - prosječna ocjena + broj glasova (javno)
-// DELETE /api/recipes/:id/rate    - obriši svoju ocjenu
+// POST   /api/recipes/:id/rate    - ocijeni recept (BRIŠE CACHE statistike)
+// GET    /api/recipes/:id/ratings - sve ocjene za recept
+// GET    /api/recipes/:id/stats   - statistika ocjena (KEŠIRANO)
+// DELETE /api/recipes/:id/rate    - obriši svoju ocjenu (BRIŠE CACHE)
 
 use axum::{
     extract::{Path, State},
@@ -12,6 +12,7 @@ use axum::{
     Extension,
     Json,
 };
+use redis::AsyncCommands;
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -20,21 +21,21 @@ use crate::handlers::middleware::AuthUser;
 use crate::models::rating::{CreateRatingRequest, RatingWithUser, RecipeStats};
 use crate::AppState;
 
+/// Cache TTL za statistike - 2 minute
+const STATS_CACHE_TTL: u64 = 120;
+
 /// Ocijeni recept ili ažuriraj postojeću ocjenu
-/// Ako korisnik već ima ocjenu za taj recept, ažurira je (ON CONFLICT DO UPDATE)
-/// Zahtijeva: JWT token
+/// Briše cache statistike za taj recept
 pub async fn rate_recipe(
     State(state): State<Arc<AppState>>,
     Extension(auth_user): Extension<AuthUser>,
     Path(recipe_id): Path<Uuid>,
     Json(body): Json<CreateRatingRequest>,
 ) -> Result<(StatusCode, Json<RatingWithUser>), AppError> {
-    // Validacija: ocjena mora biti 1-5
     if body.score < 1 || body.score > 5 {
         return Err(AppError::BadRequest("Score must be between 1 and 5".into()));
     }
 
-    // INSERT ili UPDATE ako već postoji ocjena od ovog korisnika
     let rating = sqlx::query_as::<_, RatingWithUser>(
         r#"
         INSERT INTO ratings (id, user_id, recipe_id, score, comment, created_at)
@@ -52,12 +53,16 @@ pub async fn rate_recipe(
     .fetch_one(&state.db)
     .await?;
 
+    // Obriši cache statistike za ovaj recept jer se ocjena promijenila
+    let mut redis_conn = state.redis.clone();
+    let cache_key = format!("cache:recipe:{}:stats", recipe_id);
+    let _: Result<(), _> = redis_conn.del(&cache_key).await;
+    tracing::info!("Cache INVALIDATED for recipe {} stats", recipe_id);
+
     Ok((StatusCode::CREATED, Json(rating)))
 }
 
-/// Dohvati sve ocjene za jedan recept
-/// Javni endpoint - ne treba token
-/// Vraća ocjene sortirane od najnovije
+/// Dohvati sve ocjene za recept (nije keširano jer se rijetko čita masovno)
 pub async fn get_recipe_ratings(
     State(state): State<Arc<AppState>>,
     Path(recipe_id): Path<Uuid>,
@@ -78,13 +83,30 @@ pub async fn get_recipe_ratings(
     Ok(Json(ratings))
 }
 
-/// Dohvati statistiku ocjena za recept (prosječna ocjena + broj glasova)
-/// Javni endpoint - ne treba token
-/// Primjer odgovora: { "average_rating": 4.5, "total_ratings": 12 }
+/// Statistika ocjena - KEŠIRANO u Redisu
+///
+/// Flow:
+/// 1. Provjeri cache → ako postoji, vrati odmah
+/// 2. Ako nema → dohvati iz baze, spremi u cache (2 min TTL)
+/// 3. Cache se briše kad neko ocijeni ili obriše ocjenu
 pub async fn get_recipe_stats(
     State(state): State<Arc<AppState>>,
     Path(recipe_id): Path<Uuid>,
 ) -> Result<Json<RecipeStats>, AppError> {
+    let cache_key = format!("cache:recipe:{}:stats", recipe_id);
+    let mut redis_conn = state.redis.clone();
+
+    // 1. Pokušaj iz cache-a
+    let cached: Result<String, _> = redis_conn.get(&cache_key).await;
+    if let Ok(cached_json) = cached {
+        tracing::info!("Cache HIT for recipe {} stats", recipe_id);
+        let stats: RecipeStats = serde_json::from_str(&cached_json)
+            .map_err(|_| AppError::Internal("Cache parse error".into()))?;
+        return Ok(Json(stats));
+    }
+
+    // 2. Cache MISS - dohvati iz baze
+    tracing::info!("Cache MISS for recipe {} stats", recipe_id);
     let stats = sqlx::query_as::<_, RecipeStats>(
         r#"
         SELECT 
@@ -98,12 +120,15 @@ pub async fn get_recipe_stats(
     .fetch_one(&state.db)
     .await?;
 
+    // 3. Spremi u cache
+    let json = serde_json::to_string(&stats)
+        .map_err(|_| AppError::Internal("Serialization error".into()))?;
+    let _: Result<(), _> = redis_conn.set_ex(&cache_key, &json, STATS_CACHE_TTL).await;
+
     Ok(Json(stats))
 }
 
-/// Obriši svoju ocjenu za recept
-/// Korisnik može obrisati samo SVOJU ocjenu (WHERE user_id = auth_user)
-/// Zahtijeva: JWT token
+/// Obriši svoju ocjenu - briše cache statistike
 pub async fn delete_rating(
     State(state): State<Arc<AppState>>,
     Extension(auth_user): Extension<AuthUser>,
@@ -118,6 +143,11 @@ pub async fn delete_rating(
     if result.rows_affected() == 0 {
         return Err(AppError::NotFound);
     }
+
+    // Obriši cache statistike
+    let mut redis_conn = state.redis.clone();
+    let cache_key = format!("cache:recipe:{}:stats", recipe_id);
+    let _: Result<(), _> = redis_conn.del(&cache_key).await;
 
     Ok(StatusCode::NO_CONTENT)
 }
