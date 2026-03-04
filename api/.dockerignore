@@ -1,0 +1,6 @@
+# Ne kopiraj build artefakte u Docker - kompajliramo iznova
+target/
+
+# Git fajlovi nisu potrebni
+.git/
+.gitignore
