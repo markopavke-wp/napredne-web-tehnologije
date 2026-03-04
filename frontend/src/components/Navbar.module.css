@@ -1,0 +1,64 @@
+.navbar {
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border);
+    padding: 0 30px;
+    height: 64px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    backdrop-filter: blur(10px);
+    transition: var(--transition);
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 700;
+    font-size: 1.2em;
+  }
+  .logo { font-size: 1.4em; }
+  .brandText { color: var(--accent); }
+  .links { display: flex; align-items: center; gap: 6px; }
+  .link {
+    padding: 8px 14px;
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    transition: var(--transition);
+  }
+  .link:hover { background: var(--accent-light); color: var(--accent); }
+  .active { background: var(--accent-light); color: var(--accent); }
+  .logoutBtn {
+    padding: 8px 16px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--danger);
+    background: transparent;
+    color: var(--danger);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: var(--transition);
+  }
+  .logoutBtn:hover { background: var(--danger); color: white; }
+  .themeBtn {
+    background: var(--bg-tertiary);
+    border: none;
+    padding: 8px;
+    border-radius: 50%;
+    font-size: 18px;
+    cursor: pointer;
+    transition: var(--transition);
+    margin-left: 4px;
+  }
+  .themeBtn:hover { transform: rotate(20deg); }
+  
+  @media (max-width: 768px) {
+    .navbar { padding: 0 15px; }
+    .links { gap: 2px; }
+    .link { padding: 6px 10px; font-size: 13px; }
+    .brandText { display: none; }
+  }

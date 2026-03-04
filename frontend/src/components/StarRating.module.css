@@ -1,0 +1,10 @@
+.stars { display: inline-flex; gap: 2px; }
+.star {
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.2s, transform 0.2s;
+}
+.star:hover { transform: scale(1.2); }
+.filled { color: #fbbf24; }
+.readonly { cursor: default; }
+.readonly:hover { transform: none; }

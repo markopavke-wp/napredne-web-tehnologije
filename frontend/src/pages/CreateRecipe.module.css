@@ -1,0 +1,42 @@
+.page { max-width: 700px; margin: 0 auto; animation: fadeIn 0.5s ease; }
+.card { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius); padding: 36px; box-shadow: var(--shadow); }
+.header { text-align: center; margin-bottom: 28px; }
+.icon { font-size: 48px; display: block; margin-bottom: 8px; }
+.form { display: flex; flex-direction: column; gap: 20px; }
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field label { font-size: 14px; font-weight: 600; color: var(--text-secondary); }
+.field input, .field textarea, .field select {
+  padding: 12px 16px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--bg-primary); color: var(--text-primary); font-size: 15px; font-family: inherit;
+  transition: var(--transition); resize: vertical;
+}
+.field input:focus, .field textarea:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px var(--accent-light); }
+.row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.ingredientsSection { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 20px; background: var(--bg-primary); }
+.ingredientsHeader { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+.ingredientsHeader h3 { font-size: 1.1em; }
+.addBtn { padding: 8px 16px; background: var(--accent-light); color: var(--accent); border: 1px solid var(--accent); border-radius: var(--radius-sm); cursor: pointer; font-weight: 600; font-size: 14px; transition: var(--transition); }
+.addBtn:hover { background: var(--accent); color: white; }
+.emptyMsg { color: var(--text-muted); text-align: center; padding: 20px; font-size: 14px; }
+.ingredientRow { display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 8px; margin-bottom: 8px; align-items: center; animation: slideIn 0.3s ease; }
+.ingredientRow select, .ingredientRow input {
+  padding: 10px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--bg-secondary); color: var(--text-primary); font-size: 14px;
+}
+.removeBtn { padding: 8px 12px; background: var(--danger-light); color: var(--danger); border: none; border-radius: var(--radius-sm); cursor: pointer; font-size: 16px; transition: var(--transition); }
+.removeBtn:hover { background: var(--danger); color: white; }
+.submit {
+  padding: 16px; background: var(--accent); color: white; border: none; border-radius: var(--radius-sm);
+  font-size: 16px; font-weight: 600; cursor: pointer; transition: var(--transition); margin-top: 8px;
+}
+.submit:hover { background: var(--accent-hover); transform: translateY(-2px); }
+.submit:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+@keyframes fadeIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes slideIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
+
+@media (max-width: 768px) {
+  .card { padding: 20px; }
+  .row { grid-template-columns: 1fr; }
+  .ingredientRow { grid-template-columns: 1fr 1fr; }
+}
