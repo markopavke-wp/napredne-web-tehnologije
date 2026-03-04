@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Recipe App</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; }
+        a { color: #2196F3; }
+        .status { padding: 10px; border-radius: 5px; margin: 10px 0; }
+        .ok { background: #e8f5e9; color: #2e7d32; }
+    </style>
+</head>
+<body>
+    <h1>Recipe App</h1>
+    <p>Frontend coming in step 5!</p>
+    <h3>API Endpoints (through Nginx):</h3>
+    <ul>
+        <li><a href="/api/health">/api/health</a></li>
+        <li><a href="/api/recipes">/api/recipes</a></li>
+        <li><a href="/api/ingredients">/api/ingredients</a></li>
+    </ul>
+    <div id="status" class="status">Checking API...</div>
+    <script>
+        fetch('/api/health')
+            .then(r => r.text())
+            .then(t => {
+                document.getElementById('status').className = 'status ok';
+                document.getElementById('status').textContent = 'API Status: ' + t;
+            })
+            .catch(() => {
+                document.getElementById('status').textContent = 'API is down';
+            });
+    </script>
+</body>
+</html>
