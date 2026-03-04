@@ -116,6 +116,7 @@ async fn main() {
         .route("/api/auth/login", post(handlers::auth::login))
         .route("/api/recipes", get(handlers::recipes::list_recipes))
         .route("/api/recipes/:id", get(handlers::recipes::get_recipe))
+        .route("/api/recipes/:id/ingredients", get(handlers::recipes::get_recipe_ingredients))
         .route("/api/recipes/search", post(handlers::recipes::search_by_ingredients))
         .route("/api/recipes/:id/ratings", get(handlers::ratings::get_recipe_ratings))
         .route("/api/recipes/:id/stats", get(handlers::ratings::get_recipe_stats))

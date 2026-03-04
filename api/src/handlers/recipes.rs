@@ -9,6 +9,7 @@ use uuid::Uuid;
 
 use crate::errors::AppError;
 use crate::handlers::middleware::AuthUser;
+use crate::models::ingredient::RecipeIngredient;
 use crate::models::recipe::{CreateRecipeRequest, Recipe, RecipeWithAuthor, SearchByIngredientsRequest};
 use crate::AppState;
 
@@ -166,4 +167,27 @@ pub async fn search_by_ingredients(
     .await?;
 
     Ok(Json(recipes))
+}
+
+pub async fn get_recipe_ingredients(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<Uuid>,
+) -> Result<Json<Vec<RecipeIngredient>>, AppError> {
+    let ingredients = sqlx::query_as::<_, RecipeIngredient>(
+        r#"
+        SELECT ri.recipe_id, ri.ingredient_id, i.name as ingredient_name,
+               ri.quantity, ri.unit,
+               i.calories_per_100g, i.protein_per_100g, i.carbs_per_100g,
+               i.fat_per_100g, i.fiber_per_100g
+        FROM recipe_ingredients ri
+        JOIN ingredients i ON i.id = ri.ingredient_id
+        WHERE ri.recipe_id = $1
+        ORDER BY i.name
+        "#,
+    )
+    .bind(id)
+    .fetch_all(&state.db)
+    .await?;
+
+    Ok(Json(ingredients))
 }
